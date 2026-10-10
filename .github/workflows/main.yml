@@ -1,60 +1,43 @@
 name: Build BlockHost Android APK
 
-'on':
-workflow_dispatch:
-push:
-branches:
-- main
-- master
-
-permissions:
-contents: read
+on: [push, workflow_dispatch]
 
 jobs:
-build:
-runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-steps:
-  - name: Checkout source
-    uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-  - name: Set up JDK 17
-    uses: actions/setup-java@v4
-    with:
-      distribution: temurin
-      java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-  - name: Set up Android SDK
-    uses: android-actions/setup-android@v3
+      - name: Install Android SDK packages
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
 
-  - name: Install Android SDK packages
-    run: |
-      sdkmanager "platforms;android-35" "build-tools;35.0.0"
-      yes | sdkmanager --licenses
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
-  - name: Set up Gradle 8.9
-    uses: gradle/actions/setup-gradle@v4
-    with:
-      gradle-version: '8.9'
+      - name: Generate Gradle wrapper
+        working-directory: BlockHostAndroid
+        run: gradle wrapper --gradle-version 8.9
 
-  - name: Generate Gradle wrapper
-    working-directory: BlockHostAndroid
-    run: gradle wrapper --gradle-version 8.9
+      - name: Build debug APK
+        working-directory: BlockHostAndroid
+        run: ./gradlew --no-daemon :app:assembleDebug
 
-  - name: Build debug APK
-    working-directory: BlockHostAndroid
-    run: ./gradlew --no-daemon :app:assembleDebug
-
-  - name: Build release APK
-    working-directory: BlockHostAndroid
-    run: ./gradlew --no-daemon :app:assembleRelease
-
-  - name: Upload APKs
-    uses: actions/upload-artifact@v4
-    with:
-      name: BlockHost-Android-APKs
-      path: |
-        BlockHostAndroid/app/build/outputs/apk/debug/*.apk
-        BlockHostAndroid/app/build/outputs/apk/release/*.apk
-      if-no-files-found: error
-      retention-days: 14
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlockHost-debug-APK
+          path: BlockHostAndroid/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
